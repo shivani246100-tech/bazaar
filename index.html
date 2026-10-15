@@ -1,40 +1,34 @@
+```html
 <!doctype html>
 <html lang="en">
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <head>
     <meta charset="UTF-8" />
+
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <link rel="apple-touch-icon" href="/icon.svg" />
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#e11d48" />
-    <meta name="description" content="Bazaar - Everything You Need, All in One Place. Discover products from trusted sellers at great prices." />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Bazaar" />
-    <meta name="mobile-web-app-capable" content="yes" />
 
-    <title>Bazaar - Multi-Vendor Marketplace</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Open Graph -->
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="Bazaar - Everything You Need, All in One Place" />
-    <meta property="og:description" content="Discover products from trusted sellers at great prices." />
-    <meta property="og:image" content="/icon.svg" />
+    <meta
+      name="description"
+      content="Bazaar - Your online shopping marketplace for products from multiple sellers."
+    />
 
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Bazaar - Multi-Vendor Marketplace" />
-    <meta name="twitter:description" content="Discover products from trusted sellers at great prices." />
-    <meta name="twitter:image" content="/icon.svg" />
+    <meta name="theme-color" content="#ffffff" />
 
-    <!-- Preload font -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <title>Bazaar - Online Marketplace</title>
+
+    <!-- Razorpay Checkout Script -->
+    <script
+      src="https://checkout.razorpay.com/v1/checkout.js"
+      defer
+    ></script>
   </head>
+
   <body>
     <div id="root"></div>
+
+    <!-- React Application Entry Point -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+```

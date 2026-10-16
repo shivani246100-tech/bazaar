@@ -184,11 +184,13 @@ export function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
+    if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
     setLoading(true);
     try {
       await signUp(email, password, fullName, phone, role, referralCode || undefined);
-      push('success', 'Account created! Welcome to Bazaar.');
+      push('success', role === 'seller'
+        ? 'Account created! Sign in, then complete your seller application for admin review.'
+        : 'Account created! Please sign in.');
       navigate('/login');
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
@@ -269,7 +271,7 @@ export function SignupPage() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input type="password" required value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min. 6 characters" className="pl-10" />
+                  placeholder="Min. 8 characters" className="pl-10" />
               </div>
             </Field>
             <Field label="Referral Code (optional)">

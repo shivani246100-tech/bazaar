@@ -163,7 +163,14 @@ function AdminUsers() {
   }, []);
 
   const toggleActive = async (id: string, current: boolean) => {
-    await supabase.from('profiles').update({ is_active: !current }).eq('id', id);
+    let reason = '';
+    if (current) {
+      const r = window.prompt('Reason for restricting this account (required, min 5 characters):');
+      if (r === null) return;
+      reason = r;
+    }
+    const { error } = await supabase.rpc('admin_set_user_active', { p_user: id, p_active: !current, p_reason: reason });
+    if (error) { push('error', error.message); return; }
     setUsers(prev => prev.map(u => u.id === id ? { ...u, is_active: !current } : u));
     push('success', 'User status updated');
   };
@@ -207,8 +214,23 @@ function AdminSellers() {
   }, []);
 
   const updateStatus = async (id: string, status: string) => {
-    await supabase.from('seller_profiles').update({ seller_status: status }).eq('id', id);
-    setSellers(prev => prev.map(s => s.id === id ? { ...s, seller_status: status as any } : s));
+    const current = sellers.find(s => s.id === id)?.seller_status;
+    if (!current || current === status) return;
+    let decision: string | null = null;
+    if (status === 'active') decision = current === 'suspended' ? 'reactivate' : 'approve';
+    else if (status === 'suspended') decision = 'suspend';
+    else if (status === 'rejected') decision = 'reject';
+    if (!decision) { push('error', 'That status change is not allowed'); return; }
+    let reason = '';
+    if (decision === 'reject' || decision === 'suspend') {
+      const r = window.prompt(`Reason for ${decision} (required, min 5 characters; shown to the seller):`);
+      if (r === null) return;
+      reason = r;
+    } else if (!window.confirm(`Confirm: ${decision} this seller?`)) return;
+    const { error } = await supabase.rpc('admin_review_seller', { p_seller_id: id, p_decision: decision, p_reason: reason });
+    if (error) { push('error', error.message); return; }
+    const { data } = await supabase.from('seller_profiles').select('*').order('created_at', { ascending: false });
+    setSellers(data || []);
     push('success', 'Seller status updated');
   };
 
@@ -252,7 +274,16 @@ function AdminProducts() {
   useEffect(() => { fetch(); }, []);
 
   const updateStatus = async (id: string, status: string) => {
-    await supabase.from('products').update({ status }).eq('id', id);
+    const decision = status === 'approved' ? 'approve' : status === 'rejected' ? 'reject' : null;
+    if (!decision) return;
+    let reason = '';
+    if (decision === 'reject') {
+      const r = window.prompt('Rejection reason (required, min 5 characters; shown to the seller):');
+      if (r === null) return;
+      reason = r;
+    }
+    const { error } = await supabase.rpc('admin_review_product', { p_product_id: id, p_decision: decision, p_reason: reason });
+    if (error) { push('error', error.message); return; }
     push('success', `Product ${status}`);
     fetch();
   };
@@ -475,7 +506,20 @@ function AdminWithdrawals() {
   useEffect(() => { fetch(); }, []);
 
   const updateStatus = async (id: string, status: string) => {
-    await supabase.from('withdrawals').update({ status, processed_at: new Date().toISOString() }).eq('id', id);
+    const decision = status === 'approved' ? 'approve' : status === 'rejected' ? 'reject' : status === 'paid' ? 'mark_paid' : null;
+    if (!decision) return;
+    let note = '';
+    if (decision === 'reject') {
+      const r = window.prompt('Reason for rejecting this payout (required):');
+      if (r === null) return;
+      note = r;
+    } else if (decision === 'mark_paid') {
+      const r = window.prompt('Enter the bank/UPI transfer reference (UTR). This records a transfer you made outside Bazaar:');
+      if (r === null) return;
+      note = r;
+    }
+    const { error } = await supabase.rpc('admin_process_payout', { p_id: id, p_decision: decision, p_note: note });
+    if (error) { push('error', error.message); return; }
     push('success', `Withdrawal ${status}`);
     fetch();
   };
@@ -633,7 +677,7 @@ function AdminReviews() {
   const { push } = useToast();
 
   useEffect(() => {
-    supabase.from('reviews').select('*, product:products(name), profiles!reviews_user_id_fkey(full_name)').order('created_at', { ascending: false }).limit(100).then(({ data }) => { setReviews(data || []); setLoading(false); });
+    supabase.from('reviews').select('*, product:products(name)').order('created_at', { ascending: false }).limit(100).then(({ data }) => { setReviews(data || []); setLoading(false); });
   }, []);
 
   const toggleReported = async (id: string, current: boolean) => {
@@ -653,7 +697,7 @@ function AdminReviews() {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <div className="flex">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-4 w-4 ${i < r.rating ? 'fill-amber-400 text-amber-400' : 'fill-slate-200 text-slate-200'}`} />)}</div>
-                <span className="text-sm font-medium text-slate-700">{r.profiles?.full_name || 'Anonymous'}</span>
+                <span className="text-sm font-medium text-slate-700">{r.reviewer_name || 'Anonymous'}</span>
               </div>
               <Badge variant={r.is_reported ? 'error' : 'default'}>{r.is_reported ? 'Reported' : 'Normal'}</Badge>
             </div>

@@ -47,11 +47,9 @@ export interface SellerProfile {
   store_banner: string | null;
   description: string | null;
   business_name: string | null;
-  gstin: string | null;
-  pan: string | null;
   kyc_status: KycStatus;
   seller_status: SellerStatus;
-  commission_override: number | null;
+  status_reason?: string | null;
   rating: number;
   total_sales: number;
   created_at: string;
@@ -71,6 +69,7 @@ export interface Category {
 }
 
 export interface Product {
+  rejection_reason?: string | null;
   id: string;
   seller_id: string;
   category_id: string | null;
@@ -183,7 +182,7 @@ export interface Review {
   image_url: string | null;
   is_reported: boolean;
   created_at: string;
-  profiles?: { full_name: string | null };
+  reviewer_name?: string | null;
 }
 
 export interface Coupon {

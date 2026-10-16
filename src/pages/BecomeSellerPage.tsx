@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { useRouter, Link } from '@/lib/router';
@@ -27,6 +27,41 @@ export function BecomeSellerPage() {
     account_number: '',
     ifsc: '',
   });
+
+  const [application, setApplication] = useState<{ seller_status: string; status_reason: string | null; store_name: string } | null>(null);
+  const [checking, setChecking] = useState(true);
+  useEffect(() => {
+    if (!user) { setChecking(false); return; }
+    supabase.from('seller_profiles').select('seller_status, status_reason, store_name').eq('user_id', user.id).maybeSingle()
+      .then(({ data }) => { setApplication(data); setChecking(false); });
+  }, [user]);
+
+  if (user && checking) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-sm text-slate-500">Loading…</div>;
+  }
+
+  if (user && application && application.seller_status !== 'active' && user.role !== 'seller') {
+    const st = application.seller_status;
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <Card className="p-8 max-w-md text-center">
+          <Store className="h-16 w-16 text-rose-300 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-slate-800 mb-2">
+            {st === 'pending' ? 'Application under review' : st === 'rejected' ? 'Application rejected' : 'Seller account suspended'}
+          </h2>
+          <p className="text-sm text-slate-500 mb-2">Store: <strong>{application.store_name}</strong></p>
+          {application.status_reason && (
+            <p className="text-sm text-slate-600 bg-slate-100 rounded-lg p-3 mb-4">{application.status_reason}</p>
+          )}
+          {st === 'pending' && <p className="text-sm text-slate-500 mb-4">You will be notified once an admin reviews your application. You can start selling after approval.</p>}
+          {st === 'rejected' && (
+            <Button onClick={() => setApplication(null)}>Update details and re-apply</Button>
+          )}
+          {st === 'suspended' && <p className="text-sm text-slate-500">Please contact support for help.</p>}
+        </Card>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -65,38 +100,25 @@ export function BecomeSellerPage() {
   const submit = async () => {
     setLoading(true);
     try {
-      // Update profile role
-      await supabase.from('profiles').update({ role: 'seller' }).eq('id', user.id);
-
-      // Create seller profile
-      const { error } = await supabase.from('seller_profiles').insert({
-        user_id: user.id,
-        store_name: form.store_name,
-        store_slug: form.store_slug || slugify(form.store_name),
-        description: form.description,
-        business_name: form.business_name,
-        gstin: form.gstin,
-        pan: form.pan,
-        kyc_status: 'pending',
-        seller_status: 'pending',
+      const payout = form.payout_method === 'upi'
+        ? { method: 'upi', upi_id: form.upi_id }
+        : { method: 'bank_transfer', bank_name: form.bank_name, account_number: form.account_number, ifsc: form.ifsc };
+      // Creates a PENDING application only. Seller role, wallet and plan are
+      // granted by an admin approval on the server.
+      const { error } = await supabase.rpc('apply_as_seller', {
+        p_store_name: form.store_name,
+        p_store_slug: form.store_slug || slugify(form.store_name),
+        p_description: form.description,
+        p_business_name: form.business_name,
+        p_gstin: form.gstin,
+        p_pan: form.pan,
+        p_payout: payout,
       });
-
       if (error) throw error;
 
-      // Create wallet
-      const { data: seller } = await supabase.from('seller_profiles').select('id').eq('user_id', user.id).maybeSingle();
-      if (seller) {
-        await supabase.from('wallets').insert({ seller_id: seller.id });
-        // Assign free plan
-        const { data: plan } = await supabase.from('subscription_plans').select('id').eq('slug', 'free').maybeSingle();
-        if (plan) {
-          await supabase.from('subscriptions').insert({ seller_id: seller.id, plan_id: plan.id, status: 'active', started_at: new Date().toISOString(), renews_at: new Date(Date.now() + 365 * 86400000).toISOString(), amount_paid: 0 });
-        }
-      }
-
       await refreshProfile();
-      push('success', 'Seller account created! Welcome to Bazaar.');
-      navigate('/seller');
+      push('success', 'Application submitted. We will notify you after review.');
+      setApplication({ seller_status: 'pending', status_reason: null, store_name: form.store_name });
     } catch (err: any) {
       push('error', err.message || 'Failed to create seller account');
     } finally {

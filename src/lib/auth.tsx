@@ -71,11 +71,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (
     email: string, password: string, fullName: string,
-    phone: string, role: UserRole, referralCode?: string,
+    phone: string, _role: UserRole, referralCode?: string,
   ) => {
     const { error } = await supabase.auth.signUp({
       email, password,
-      options: { data: { full_name: fullName, phone, role, ...(referralCode ? { referral_code: referralCode } : {}) } },
+      // Role is intentionally NOT sent: the database always creates customers.
+      // Sellers apply separately and are approved by an admin.
+      options: { data: { full_name: fullName, phone, ...(referralCode ? { referral_code: referralCode } : {}) } },
     });
     if (error) throw error;
   };

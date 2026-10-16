@@ -37,7 +37,7 @@ export function ProductDetailPage({ slug }: { slug: string }) {
       setProduct(prod as any);
 
       const [revRes, relRes, wishRes] = await Promise.all([
-        supabase.from('reviews').select('*, profiles!reviews_user_id_fkey(full_name)').eq('product_id', prod.id).order('created_at', { ascending: false }).limit(10),
+        supabase.from('reviews').select('*').eq('product_id', prod.id).order('created_at', { ascending: false }).limit(10),
         supabase.from('products').select('*, product_images(*)').eq('status', 'approved').eq('category_id', prod.category_id).neq('id', prod.id).limit(5),
         user ? supabase.from('wishlist').select('id').eq('user_id', user.id).eq('product_id', prod.id).maybeSingle() : Promise.resolve({ data: null }),
       ]);
@@ -250,10 +250,10 @@ export function ProductDetailPage({ slug }: { slug: string }) {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-sm font-semibold text-rose-700">
-                        {r.profiles?.full_name?.charAt(0).toUpperCase() || 'U'}
+                        {r.reviewer_name?.charAt(0).toUpperCase() || 'U'}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-800">{r.profiles?.full_name || 'Anonymous'}</p>
+                        <p className="text-sm font-medium text-slate-800">{r.reviewer_name || 'Anonymous'}</p>
                         <p className="text-xs text-slate-400">{formatDate(r.created_at)}</p>
                       </div>
                     </div>

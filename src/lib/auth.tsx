@@ -19,16 +19,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = useCallback(async (uid: string) => {
+  const loadProfile = useCallback(async (uid: string): Promise<Profile | null> => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', uid)
       .maybeSingle();
-    if (error) {
-      console.error('Failed to load profile:', error.message);
-      return null;
-    }
+    if (error) { console.error('Profile load error:', error.message); return null; }
     return data as Profile | null;
   }, []);
 
@@ -42,19 +39,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!mounted) return;
           setUser(profile);
           setLoading(false);
-        }).catch(() => {
-          if (!mounted) return;
-          setLoading(false);
-        });
+        }).catch(() => { if (mounted) setLoading(false); });
       } else {
         setLoading(false);
       }
-    }).catch(() => {
-      if (!mounted) return;
-      setLoading(false);
-    });
+    }).catch(() => { if (mounted) setLoading(false); });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session?.user) {
         setUser(null);
         setLoading(false);
@@ -64,21 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         (async () => {
           try {
             const profile = await loadProfile(session.user.id);
-            if (mounted) {
-              setUser(profile);
-              setLoading(false);
-            }
-          } catch {
-            if (mounted) setLoading(false);
-          }
+            if (mounted) { setUser(profile); setLoading(false); }
+          } catch { if (mounted) setLoading(false); }
         })();
       }
     });
 
-    return () => {
-      mounted = false;
-      authListener.subscription.unsubscribe();
-    };
+    return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, [loadProfile]);
 
   const signIn = async (email: string, password: string) => {
@@ -87,37 +70,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (
-    email: string,
-    password: string,
-    fullName: string,
-    phone: string,
-    role: UserRole,
-    referralCode?: string,
+    email: string, password: string, fullName: string,
+    phone: string, role: UserRole, referralCode?: string,
   ) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          phone,
-          role,
-          ...(referralCode ? { referral_code: referralCode } : {}),
-        },
-      },
+    const { error } = await supabase.auth.signUp({
+      email, password,
+      options: { data: { full_name: fullName, phone, role, ...(referralCode ? { referral_code: referralCode } : {}) } },
     });
     if (error) throw error;
-    // Profile row is auto-created by the database trigger (handle_new_user).
-    // Wait briefly for the trigger to complete, then reload profile.
-    if (data.user) {
-      await loadProfile(data.user.id);
-    }
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-  };
+  const signOut = async () => { await supabase.auth.signOut(); setUser(null); };
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -128,10 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      const profile = await loadProfile(session.user.id);
-      setUser(profile);
-    }
+    if (session?.user) { const p = await loadProfile(session.user.id); setUser(p); }
   };
 
   return (

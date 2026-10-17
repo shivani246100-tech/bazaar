@@ -6,7 +6,6 @@ import { useAuth } from '@/lib/auth';
 import { useRouter, Link, pathname } from '@/lib/router';
 import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
-import { SellerReturns } from '@/pages/SellerReturnsPage';
 import { Card, Badge, EmptyState, Spinner } from '@/components/ui/Common';
 import { Select, Input, Textarea, Field } from '@/components/ui/Input';
 import type { Product, Order, Wallet, WalletTransaction, Withdrawal, SubscriptionPlan, Subscription, SellerProfile, Category, Review } from '@/lib/types';

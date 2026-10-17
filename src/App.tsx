@@ -15,6 +15,7 @@ import {
   NotificationsPage, ProfilePage, CouponsPage, ReferralsPage, SupportPage,
 } from '@/pages/CustomerPages';
 import { BecomeSellerPage } from '@/pages/BecomeSellerPage';
+import { OrderSuccessPage } from '@/pages/OrderSuccessPage';
 import { SellerDashboard } from '@/pages/SellerDashboard';
 import { AdminDashboard } from '@/pages/AdminDashboard';
 
@@ -129,6 +130,7 @@ function Routes() {
     case p.startsWith('/store/'):     content = <StorePage slug={p.replace('/store/', '')} />; break;
     case p === '/cart':               content = <CartPage />; break;
     case p === '/checkout':           content = <RequireAuth><CheckoutPage /></RequireAuth>; break;
+    case p === '/order-success':      content = <RequireAuth><OrderSuccessPage /></RequireAuth>; break;
     case p === '/orders':             content = <RequireAuth><OrdersPage /></RequireAuth>; break;
     case p.startsWith('/orders/'):    content = <RequireAuth><OrderDetailPage orderId={p.replace('/orders/', '')} /></RequireAuth>; break;
     case p === '/wishlist':           content = <RequireAuth><WishlistPage /></RequireAuth>; break;

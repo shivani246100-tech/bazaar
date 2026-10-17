@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Card, Badge, EmptyState } from '@/components/ui/Common';
 import { ProductCard } from '@/components/ProductCard';
+import { ReturnExchangeCard } from '@/components/ReturnExchange';
 import { formatINR, formatDate, formatDateTime, timeAgo, ORDER_STATUS_LABELS, orderProgress, ORDER_STATUS_FLOW } from '@/lib/utils';
 import { Package, Heart, MapPin, Bell, User, Ticket, Users, HelpCircle, Plus, Trash2, Check, ChevronRight, Truck, CheckCircle2, Clock, X, ShoppingBag, Copy } from 'lucide-react';
 
@@ -237,7 +238,7 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
             Refund of {formatINR(order.total)} has been sent to your original payment method. It can take 5-7 working days to show.
           </Card>
         )}
-       
+       <ReturnExchangeCard order={order} />
         {/* Items */}
         <Card className="p-5 mb-4">
           <h3 className="text-sm font-semibold text-slate-900 mb-3">Items in this order</h3>

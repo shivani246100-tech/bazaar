@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { AddProductUpload } from '@/pages/AddProductPage';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { useRouter, Link, pathname } from '@/lib/router';
@@ -106,7 +107,7 @@ export function SellerDashboard({ subpath }: { subpath: string }) {
             </div>
 
             {subpath === '/seller' && <SellerOverview seller={seller} />}
-            {subpath === '/seller/add-product' && <AddProduct seller={seller} />}
+            {subpath === '/seller/add-product' && <AddProductUpload seller={seller} />}
             {subpath === '/seller/products' && <SellerProducts seller={seller} />}
             {subpath === '/seller/orders' && <SellerOrders seller={seller} />}
             {subpath === '/seller/earnings' && <SellerEarnings seller={seller} />}

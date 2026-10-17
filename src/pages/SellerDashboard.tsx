@@ -1,3 +1,4 @@
+import { SellerReturns } from '@/pages/SellerReturnsPage';
 import { useState, useEffect, useCallback } from 'react';
 import { AddProductUpload } from '@/pages/AddProductPage';
 import { SellerOrdersSecure } from '@/pages/SellerOrdersPage';
@@ -17,6 +18,7 @@ const NAV = [
   { label: 'Add Product', icon: Plus, path: '/seller/add-product' },
   { label: 'My Products', icon: Package, path: '/seller/products' },
   { label: 'Orders', icon: ShoppingBag, path: '/seller/orders' },
+  { label: 'Returns', icon: ArrowDownRight, path: '/seller/returns' }, 
   { label: 'Earnings', icon: DollarSign, path: '/seller/earnings' },
   { label: 'Wallet', icon: WalletIcon, path: '/seller/wallet' },
   { label: 'Withdrawals', icon: ArrowUpRight, path: '/seller/withdrawals' },
@@ -110,7 +112,8 @@ export function SellerDashboard({ subpath }: { subpath: string }) {
             {subpath === '/seller' && <SellerOverview seller={seller} />}
             {subpath === '/seller/add-product' && <AddProductUpload seller={seller} />}
             {subpath === '/seller/products' && <SellerProducts seller={seller} />}
-            {subpath === '/seller/orders' && <SellerOrdersSecure seller={seller} />}
+            {subpath === '/seller/orders' && <SellerOrdersSecure seller={seller} 
+            {subpath === '/seller/returns' && <SellerReturns seller={seller} />}
             {subpath === '/seller/earnings' && <SellerEarnings seller={seller} />}
             {subpath === '/seller/wallet' && <SellerWallet seller={seller} />}
             {subpath === '/seller/withdrawals' && <SellerWithdrawals seller={seller} />}

@@ -11,13 +11,12 @@ import { Select, Input, Textarea, Field } from '@/components/ui/Input';
 import type { Product, Order, Wallet, WalletTransaction, Withdrawal, SubscriptionPlan, Subscription, SellerProfile, Category, Review } from '@/lib/types';
 import { formatINR, formatDate, formatDateTime, ORDER_STATUS_LABELS, slugify } from '@/lib/utils';
 import { LayoutDashboard, Package, ShoppingBag, DollarSign, Wallet as WalletIcon, Store, Ticket, Bell, HelpCircle, Plus, TrendingUp, ArrowUpRight, ArrowDownRight, Trash2, Edit, Check, X, Star, ChevronRight, Download, Upload, Clock } from 'lucide-react';
-import { SellerReturns } from '@/pages/SellerReturnsPage';
+
 const NAV = [
   { label: 'Overview', icon: LayoutDashboard, path: '/seller' },
   { label: 'Add Product', icon: Plus, path: '/seller/add-product' },
   { label: 'My Products', icon: Package, path: '/seller/products' },
   { label: 'Orders', icon: ShoppingBag, path: '/seller/orders' },
-  { label: 'Returns', icon: ArrowDownRight, path: '/seller/returns' }, 
   { label: 'Earnings', icon: DollarSign, path: '/seller/earnings' },
   { label: 'Wallet', icon: WalletIcon, path: '/seller/wallet' },
   { label: 'Withdrawals', icon: ArrowUpRight, path: '/seller/withdrawals' },
@@ -112,7 +111,6 @@ export function SellerDashboard({ subpath }: { subpath: string }) {
             {subpath === '/seller/add-product' && <AddProductUpload seller={seller} />}
             {subpath === '/seller/products' && <SellerProducts seller={seller} />}
             {subpath === '/seller/orders' && <SellerOrdersSecure seller={seller} 
-                       {subpath === '/seller/returns' && <SellerReturns seller={seller} />}
             {subpath === '/seller/earnings' && <SellerEarnings seller={seller} />}
             {subpath === '/seller/wallet' && <SellerWallet seller={seller} />}
             {subpath === '/seller/withdrawals' && <SellerWithdrawals seller={seller} />}

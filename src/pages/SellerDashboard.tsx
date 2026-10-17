@@ -112,7 +112,7 @@ export function SellerDashboard({ subpath }: { subpath: string }) {
             {subpath === '/seller/add-product' && <AddProductUpload seller={seller} />}
             {subpath === '/seller/products' && <SellerProducts seller={seller} />}
             {subpath === '/seller/orders' && <SellerOrdersSecure seller={seller} 
-            {subpath === '/seller/returns' && <SellerReturns seller={seller} />}
+                       {subpath === '/seller/returns' && <SellerReturns seller={seller} />}
             {subpath === '/seller/earnings' && <SellerEarnings seller={seller} />}
             {subpath === '/seller/wallet' && <SellerWallet seller={seller} />}
             {subpath === '/seller/withdrawals' && <SellerWithdrawals seller={seller} />}

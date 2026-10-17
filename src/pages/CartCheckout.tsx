@@ -29,7 +29,6 @@ interface CouponRow {
   ends_at: string | null;
 }
 
-// Razorpay types (online payment is added in the next step)
 declare global {
   interface Window {
     Razorpay: any;
@@ -37,6 +36,7 @@ declare global {
 }
 
 const DEFAULT_SHIPPING = 49;
+const ONLINE_ENABLED = Boolean(import.meta.env.VITE_RAZORPAY_KEY_ID);
 const CART_SELECT = '*, product:products(*, seller:seller_profiles(*), product_images(*))';
 const COUPON_SELECT = 'code, discount_type, discount_value, min_order_value, max_discount, seller_id, usage_limit, used_count, starts_at, ends_at';
 
@@ -281,6 +281,7 @@ export function CheckoutPage() {
   const [coupon, setCoupon] = useState<CouponRow | null>(null);
   const [loadingCart, setLoadingCart] = useState(true);
   const [placing, setPlacing] = useState(false);
+  const [method, setMethod] = useState<'cod' | 'online'>(ONLINE_ENABLED ? 'online' : 'cod');
 
   useEffect(() => {
     if (!user) { navigate('/login'); return; }
@@ -323,23 +324,106 @@ export function CheckoutPage() {
     }
   };
 
+  // Opens the Razorpay window. The amount comes from OUR server, and the
+  // order is only marked paid after the server checks with Razorpay.
+  const startOnlinePayment = async (checkoutId: string, ids: string[]) => {
+    const addr = addresses.find(a => a.id === selectedAddr);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) throw new Error('Please sign in again');
+
+      const r = await fetch('/api/pay/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ checkout_id: checkoutId }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'Could not start the payment');
+
+      const rzp = new window.Razorpay({
+        key: j.key,
+        amount: j.amount,
+        currency: j.currency,
+        order_id: j.order_id,
+        name: 'Bazaar',
+        description: 'Order payment',
+        prefill: { name: addr?.full_name, contact: addr?.phone },
+        theme: { color: '#e11d48' },
+        modal: {
+          ondismiss: () => {
+            setPlacing(false);
+            push('info', 'Payment not completed. Your items are held for 30 minutes. Press Pay to try again.');
+          },
+        },
+        handler: async (resp: any) => {
+          try {
+            const vr = await fetch('/api/pay/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({
+                razorpay_order_id: resp.razorpay_order_id,
+                razorpay_payment_id: resp.razorpay_payment_id,
+                razorpay_signature: resp.razorpay_signature,
+              }),
+            });
+            const vj = await vr.json().catch(() => ({}));
+            if (vr.ok && (vj.result === 'paid' || vj.result === 'already_paid')) {
+              navigate(`/order-success?ids=${ids.join(',')}`);
+              return;
+            }
+            if (vr.ok && vj.result === 'refunded') {
+              push('error', 'Your order expired, so the payment was refunded automatically. Please order again.');
+              navigate('/cart');
+              return;
+            }
+            push('info', 'We are confirming your payment. Please check My Orders in a minute.');
+            navigate('/orders');
+          } catch {
+            push('info', 'We are confirming your payment. Please check My Orders in a minute.');
+            navigate('/orders');
+          } finally {
+            setPlacing(false);
+          }
+        },
+      });
+      rzp.on('payment.failed', (resp: any) => {
+        push('error', `Payment failed: ${resp?.error?.description || 'please try again'}`);
+      });
+      rzp.open();
+    } catch (e: any) {
+      setPlacing(false);
+      push('error', e.message || 'Could not start the payment');
+    }
+  };
+
   // The server checks prices, stock and coupon, creates the orders and
   // reduces stock in ONE safe step. The browser sends no prices at all.
   const placeOrder = async () => {
     if (placing) return;
     if (!user || !selectedAddr) { push('error', 'Please select a delivery address'); return; }
     if (groups.length === 0) { push('error', 'Your cart is empty'); return; }
+    const online = method === 'online';
+    if (online && !window.Razorpay) {
+      push('error', 'Payment system is still loading. Please try again in a moment.');
+      return;
+    }
     setPlacing(true);
+    if (online) await supabase.rpc('release_expired_checkouts');
     const { data, error } = await supabase.rpc('place_order', {
       p_address_id: selectedAddr,
-      p_payment_method: 'cod',
+      p_payment_method: online ? 'online' : 'cod',
       p_coupon: couponCode || null,
     });
-    setPlacing(false);
-    if (error) { push('error', error.message); return; }
+    if (error) { setPlacing(false); push('error', error.message); return; }
     const ids: string[] = (data as any)?.order_ids || [];
-    if (ids.length === 0) { push('error', 'Order could not be created. Please try again.'); return; }
-    navigate(`/order-success?ids=${ids.join(',')}`);
+    if (ids.length === 0) { setPlacing(false); push('error', 'Order could not be created. Please try again.'); return; }
+    if (!online) {
+      setPlacing(false);
+      navigate(`/order-success?ids=${ids.join(',')}`);
+      return;
+    }
+    await startOnlinePayment((data as any).checkout_id, ids);
   };
 
   const itemsTotal = groups.reduce((s, g) => s + g.subtotal, 0);
@@ -401,23 +485,37 @@ export function CheckoutPage() {
             <Card className="p-5">
               <h3 className="text-sm font-semibold text-slate-900 mb-3">2. Payment Method</h3>
               <div className="space-y-2">
-                <label className="flex items-center gap-3 p-3 rounded-lg border-2 border-rose-500 bg-rose-50 cursor-pointer">
-                  <input type="radio" checked readOnly className="text-rose-600" />
+                {ONLINE_ENABLED ? (
+                  <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${method === 'online' ? 'border-rose-500 bg-rose-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                    <input type="radio" checked={method === 'online'} onChange={() => setMethod('online')} className="text-rose-600" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">Pay online</p>
+                      <p className="text-xs text-slate-500">UPI, Credit / Debit Card, Net Banking</p>
+                    </div>
+                  </label>
+                ) : (
+                  <div className="flex items-center gap-3 p-3 rounded-lg border-2 border-slate-200 bg-slate-50 opacity-70">
+                    <input type="radio" disabled />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-slate-800">Online payment (UPI, Card, Net Banking)</p>
+                      <p className="text-xs text-slate-500">Not set up yet</p>
+                    </div>
+                    <Badge>Soon</Badge>
+                  </div>
+                )}
+                <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${method === 'cod' ? 'border-rose-500 bg-rose-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                  <input type="radio" checked={method === 'cod'} onChange={() => setMethod('cod')} className="text-rose-600" />
                   <div>
                     <p className="text-sm font-medium text-slate-800">Cash on Delivery</p>
                     <p className="text-xs text-slate-500">Pay in cash when your order arrives</p>
                   </div>
                 </label>
-                <div className="flex items-center gap-3 p-3 rounded-lg border-2 border-slate-200 bg-slate-50 opacity-70">
-                  <input type="radio" disabled />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-800">Online payment (UPI, Card, Net Banking)</p>
-                    <p className="text-xs text-slate-500">Coming soon — being set up</p>
-                  </div>
-                  <Badge>Soon</Badge>
-                </div>
               </div>
-              <p className="mt-3 text-xs text-slate-400">No online payment needed. Pay cash at delivery.</p>
+              <p className="mt-3 text-xs text-slate-400">
+                {method === 'online'
+                  ? 'Secured by Razorpay. Your order is confirmed once the payment is verified.'
+                  : 'No online payment needed. Pay cash at delivery.'}
+              </p>
             </Card>
           </div>
 
@@ -454,8 +552,9 @@ export function CheckoutPage() {
               )}
               {problem && <p className="mt-3 text-xs text-red-600">{problem}. Please go back and reduce the quantity.</p>}
               <Button onClick={placeOrder} loading={placing} size="lg" className="w-full mt-4" disabled={!selectedAddr || placing || groups.length === 0 || !!problem}>
-                📦 Place Order (Cash on Delivery)
+                {method === 'online' ? `💳 Pay ${formatINR(grandTotal)}` : '📦 Place Order (Cash on Delivery)'}
               </Button>
+              {method === 'online' && <p className="text-center text-xs text-slate-400 mt-2">Powered by Razorpay</p>}
             </Card>
           </div>
         </div>

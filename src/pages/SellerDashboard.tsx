@@ -327,10 +327,11 @@ function SellerProducts({ seller }: { seller: SellerProfile }) {
   const filtered = filter === 'all' ? products : filter === 'pending' ? products.filter(p => p.status === 'pending') : filter === 'approved' ? products.filter(p => p.status === 'approved') : products.filter(p => p.status === 'rejected');
 
   const deleteProduct = async (id: string) => {
-    if (!confirm('Delete this product? This cannot be undone.')) return;
-    await supabase.from('products').delete().eq('id', id);
-    setProducts(prev => prev.filter(p => p.id !== id));
-    push('info', 'Product deleted');
+    if (!confirm('Archive this product? It will be hidden from the store. You can reactivate it later.')) return;
+    const { error } = await supabase.from('products').update({ status: 'disabled' }).eq('id', id);
+    if (error) { push('error', error.message); return; }
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, status: 'disabled' as any } : p));
+    push('success', 'Product archived');
   };
 
   return (
@@ -357,6 +358,7 @@ function SellerProducts({ seller }: { seller: SellerProfile }) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-800 truncate">{p.name}</p>
                 <p className="text-xs text-slate-400">{p.category?.name} · {formatINR(p.selling_price)} · Stock: {p.stock}</p>
+                {p.status === 'rejected' && p.rejection_reason && <p className="text-xs text-red-600 mt-0.5">Reason: {p.rejection_reason}</p>}
               </div>
               <Badge variant={p.status === 'approved' ? 'success' : p.status === 'pending' ? 'warning' : p.status === 'rejected' ? 'error' : 'default'}>{p.status}</Badge>
               <button onClick={() => deleteProduct(p.id)} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 className="h-4 w-4" /></button>
@@ -375,7 +377,7 @@ function SellerOrders({ seller }: { seller: SellerProfile }) {
   const { push } = useToast();
 
   const fetch = async () => {
-    const { data } = await supabase.from('orders').select('*, order_items(*), customer:profiles(*)').eq('seller_id', seller.id).order('created_at', { ascending: false });
+    const { data } = await supabase.from('orders').select('*, order_items(*), customer:profiles(id, full_name, phone)').eq('seller_id', seller.id).order('created_at', { ascending: false });
     setOrders((data as any) || []);
     setLoading(false);
   };
@@ -534,8 +536,8 @@ function SellerWallet({ seller }: { seller: SellerProfile }) {
                   <p className="text-xs text-slate-400">{formatDateTime(t.created_at)}</p>
                 </div>
                 <div className="text-right">
-                  <p className={`text-sm font-semibold ${t.type === 'credit' || t.type === 'withdrawal' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {t.type === 'credit' || t.type === 'withdrawal' ? '+' : '-'}{formatINR(t.amount)}
+                  <p className={`text-sm font-semibold ${t.type === 'credit' || t.type === 'adjustment' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {t.type === 'credit' || t.type === 'adjustment' ? '+' : '-'}{formatINR(t.amount)}
                   </p>
                   <p className="text-xs text-slate-400">Bal: {formatINR(t.balance_after)}</p>
                 </div>
@@ -576,12 +578,10 @@ function SellerWithdrawals({ seller }: { seller: SellerProfile }) {
     setSubmitting(true);
     try {
       const payoutDetails: any = form.payout_method === 'upi' ? { upi_id: form.upi_id } : { bank_name: form.bank_name, account_number: form.account_number, ifsc: form.ifsc };
-      const { error } = await supabase.from('withdrawals').insert({
-        seller_id: seller.id,
-        amount: amt,
-        payout_method: form.payout_method,
-        payout_details: payoutDetails,
-        status: 'pending',
+      const { error } = await supabase.rpc('request_payout', {
+        p_amount: amt,
+        p_method: form.payout_method,
+        p_details: payoutDetails,
       });
       if (error) throw error;
       push('success', 'Withdrawal request submitted!');
@@ -663,7 +663,7 @@ function SellerReviews({ seller }: { seller: SellerProfile }) {
       const { data: products } = await supabase.from('products').select('id').eq('seller_id', seller.id);
       if (!products || products.length === 0) { setLoading(false); return; }
       const productIds = products.map(p => p.id);
-      const { data } = await supabase.from('reviews').select('*, product:products(name), profiles!reviews_user_id_fkey(full_name)').in('product_id', productIds).order('created_at', { ascending: false }).limit(50);
+      const { data } = await supabase.from('reviews').select('*, product:products(name)').in('product_id', productIds).order('created_at', { ascending: false }).limit(50);
       setReviews(data || []);
       setLoading(false);
     })();
@@ -682,8 +682,8 @@ function SellerReviews({ seller }: { seller: SellerProfile }) {
             <Card key={r.id} className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-sm font-semibold text-rose-700">{r.profiles?.full_name?.charAt(0).toUpperCase() || 'U'}</div>
-                  <div><p className="text-sm font-medium text-slate-800">{r.profiles?.full_name || 'Anonymous'}</p><p className="text-xs text-slate-400">{r.product?.name} · {formatDate(r.created_at)}</p></div>
+                  <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-sm font-semibold text-rose-700">{r.reviewer_name?.charAt(0).toUpperCase() || 'U'}</div>
+                  <div><p className="text-sm font-medium text-slate-800">{r.reviewer_name || 'Anonymous'}</p><p className="text-xs text-slate-400">{r.product?.name} · {formatDate(r.created_at)}</p></div>
                 </div>
                 <div className="flex">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-4 w-4 ${i < r.rating ? 'fill-amber-400 text-amber-400' : 'fill-slate-200 text-slate-200'}`} />)}</div>
               </div>

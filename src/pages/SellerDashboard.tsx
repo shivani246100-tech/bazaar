@@ -11,7 +11,7 @@ import { Select, Input, Textarea, Field } from '@/components/ui/Input';
 import type { Product, Order, Wallet, WalletTransaction, Withdrawal, SubscriptionPlan, Subscription, SellerProfile, Category, Review } from '@/lib/types';
 import { formatINR, formatDate, formatDateTime, ORDER_STATUS_LABELS, slugify } from '@/lib/utils';
 import { LayoutDashboard, Package, ShoppingBag, DollarSign, Wallet as WalletIcon, Store, Ticket, Bell, HelpCircle, Plus, TrendingUp, ArrowUpRight, ArrowDownRight, Trash2, Edit, Check, X, Star, ChevronRight, Download, Upload, Clock } from 'lucide-react';
-
+import { SellerReturns } from '@/pages/SellerReturnsPage';
 const NAV = [
   { label: 'Overview', icon: LayoutDashboard, path: '/seller' },
   { label: 'Add Product', icon: Plus, path: '/seller/add-product' },

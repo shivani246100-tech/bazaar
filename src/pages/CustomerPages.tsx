@@ -109,6 +109,23 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
   const { user } = useAuth();
   const { navigate } = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
+    const { push } = useToast();
+  const [cancelling, setCancelling] = useState(false);
+
+  const cancelOrder = async () => {
+    if (!order || cancelling) return;
+    const reason = window.prompt('Why do you want to cancel this order? (optional)');
+    if (reason === null) return;
+    setCancelling(true);
+    const { error } = await supabase.rpc('customer_cancel_order', {
+      p_order: order.id,
+      p_reason: reason || 'Cancelled by customer',
+    });
+    setCancelling(false);
+    if (error) { push('error', error.message); return; }
+    push('success', 'Order cancelled');
+    setOrder({ ...order, status: 'cancelled' } as any);
+  };
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -166,7 +183,24 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
             </div>
           )}
         </Card>
-
+        
+       {(order as any).tracking_number && ['shipped', 'out_for_delivery', 'delivered', 'completed'].includes(order.status) && (
+          <Card className="p-4 mb-4 text-sm text-slate-600">
+            Courier: <b>{(order as any).courier}</b> · Tracking number: <b>{(order as any).tracking_number}</b>
+          </Card>
+        )}
+        {['pending', 'confirmed', 'processing'].includes(order.status) && order.payment_status !== 'paid' && (
+          <Card className="p-4 mb-4 flex items-center justify-between gap-3">
+            <p className="text-sm text-slate-600">Changed your mind? You can cancel until the seller packs your order.</p>
+            <Button size="sm" variant="outline" loading={cancelling} onClick={cancelOrder}>Cancel Order</Button>
+          </Card>
+        )}
+        {['confirmed', 'processing'].includes(order.status) && order.payment_status === 'paid' && (
+          <Card className="p-4 mb-4 text-sm text-slate-600">
+            This order is already paid. To cancel it and get a refund, please contact Support.
+          </Card>
+        )}
+        
         {/* Items */}
         <Card className="p-5 mb-4">
           <h3 className="text-sm font-semibold text-slate-900 mb-3">Items in this order</h3>

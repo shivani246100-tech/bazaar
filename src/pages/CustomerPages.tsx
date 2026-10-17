@@ -111,7 +111,29 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
   const [order, setOrder] = useState<Order | null>(null);
     const { push } = useToast();
   const [cancelling, setCancelling] = useState(false);
-
+  const cancelPaidOrder = async () => {
+    if (!order || cancelling) return;
+    if (order.status !== 'cancelled' && !window.confirm('Cancel this order and get a full refund?')) return;
+    setCancelling(true);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) throw new Error('Please sign in again');
+      const r = await fetch('/api/pay/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ order_id: order.id, reason: 'Cancelled by customer' }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'Could not cancel the order');
+      push('success', 'Order cancelled. Your refund has been started.');
+      setOrder({ ...order, status: 'cancelled', payment_status: 'refunded' } as any);
+    } catch (e: any) {
+      push('error', e.message || 'Could not cancel the order');
+    } finally {
+      setCancelling(false);
+    }
+  };
   const cancelOrder = async () => {
     if (!order || cancelling) return;
     const reason = window.prompt('Why do you want to cancel this order? (optional)');
@@ -197,10 +219,25 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
         )}
         {['confirmed', 'processing'].includes(order.status) && order.payment_status === 'paid' && (
           <Card className="p-4 mb-4 text-sm text-slate-600">
-            This order is already paid. To cancel it and get a refund, please contact Support.
+              <span className="flex items-center justify-between gap-3">
+              <span>This order is already paid. If you cancel it, the full amount is refunded to your original payment method (5-7 working days).</span>
+              <Button size="sm" variant="outline" loading={cancelling} onClick={cancelPaidOrder}>Cancel &amp; Refund</Button>
+            </span>
           </Card>
         )}
         
+         {order.status === 'cancelled' && order.payment_status === 'paid' && order.payment_method === 'online' && (
+          <Card className="p-4 mb-4 flex items-center justify-between gap-3">
+            <p className="text-sm text-slate-600">Your order is cancelled, but the refund has not gone through yet.</p>
+            <Button size="sm" loading={cancelling} onClick={cancelPaidOrder}>Retry Refund</Button>
+          </Card>
+        )}
+        {order.payment_status === 'refunded' && (
+          <Card className="p-4 mb-4 text-sm text-emerald-700 bg-emerald-50">
+            Refund of {formatINR(order.total)} has been sent to your original payment method. It can take 5-7 working days to show.
+          </Card>
+        )}
+       
         {/* Items */}
         <Card className="p-5 mb-4">
           <h3 className="text-sm font-semibold text-slate-900 mb-3">Items in this order</h3>

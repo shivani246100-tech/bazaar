@@ -348,7 +348,7 @@ export function CheckoutPage() {
       });
       setPlacing(false);
       push('success', 'Order placed! Pay on delivery.');
-      navigate('/orders');
+      navigate(`/order-success?ids=${orderIds.join(',')}`);
       return;
     }
 
@@ -392,7 +392,7 @@ export function CheckoutPage() {
         });
 
         push('success', `Payment successful! ₹${grandTotal} paid.`);
-        navigate('/orders');
+        navigate(`/order-success?ids=${orderIds.join(',')}`);
       },
       prefill: {
         name: user.name || '',

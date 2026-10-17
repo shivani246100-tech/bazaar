@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AddProductUpload } from '@/pages/AddProductPage';
+import { SellerOrdersSecure } from '@/pages/SellerOrdersPage';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { useRouter, Link, pathname } from '@/lib/router';
@@ -109,7 +110,7 @@ export function SellerDashboard({ subpath }: { subpath: string }) {
             {subpath === '/seller' && <SellerOverview seller={seller} />}
             {subpath === '/seller/add-product' && <AddProductUpload seller={seller} />}
             {subpath === '/seller/products' && <SellerProducts seller={seller} />}
-            {subpath === '/seller/orders' && <SellerOrders seller={seller} />}
+            {subpath === '/seller/orders' && <SellerOrdersSecure seller={seller} />}
             {subpath === '/seller/earnings' && <SellerEarnings seller={seller} />}
             {subpath === '/seller/wallet' && <SellerWallet seller={seller} />}
             {subpath === '/seller/withdrawals' && <SellerWithdrawals seller={seller} />}

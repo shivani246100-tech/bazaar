@@ -238,6 +238,7 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
             Refund of {formatINR(order.total)} has been sent to your original payment method. It can take 5-7 working days to show.
           </Card>
         )}
+        
        <ReturnExchangeCard order={order} />
         {/* Items */}
         <Card className="p-5 mb-4">

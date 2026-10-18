@@ -213,13 +213,15 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
             Courier: <b>{(order as any).courier}</b> · Tracking number: <b>{(order as any).tracking_number}</b>
           </Card>
         )}
-                {false && (
+        {['pending', 'confirmed', 'processing'].includes(order.status) && order.payment_status !== 'paid' && (
+      {false && (
           <Card className="p-4 mb-4 flex items-center justify-between gap-3">
             <p className="text-sm text-slate-600">Changed your mind? You can cancel until the seller packs your order.</p>
             <Button size="sm" variant="outline" loading={cancelling} onClick={cancelOrder}>Cancel Order</Button>
           </Card>
         )}
-                {false && (
+        {['confirmed', 'processing'].includes(order.status) && order.payment_status === 'paid' && (
+      {false && (
           <Card className="p-4 mb-4 text-sm text-slate-600">
               <span className="flex items-center justify-between gap-3">
               <span>This order is already paid. If you cancel it, the full amount is refunded to your original payment method (5-7 working days).</span>
@@ -228,7 +230,8 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
           </Card>
         )}
         
-                 {false && (
+         {order.status === 'cancelled' && order.payment_status === 'paid' && order.payment_method === 'online' && (
+      {false && (
           <Card className="p-4 mb-4 flex items-center justify-between gap-3">
             <p className="text-sm text-slate-600">Your order is cancelled, but the refund has not gone through yet.</p>
             <Button size="sm" loading={cancelling} onClick={cancelPaidOrder}>Retry Refund</Button>

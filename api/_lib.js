@@ -40,7 +40,7 @@ async function supabaseFetch(path, options = {}) {
     },
   });
   const text = await r.text();
-  if (!r.ok) throw new Error(`Database call ${path.split('?')[0]} failed (${r.status})`);
+ if (!r.ok) throw new Error(`Database call ${path.split('?')[0]} failed (${r.status}): ${text.slice(0, 300)}`);
   return text ? JSON.parse(text) : null;
 }
 
@@ -57,7 +57,7 @@ export async function razorpay(path, method = 'GET', body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`Razorpay ${path.split('?')[0]} failed (${r.status})`);
+  if (!r.ok) throw new Error(`Razorpay ${path.split('?')[0]} failed (${r.status}): ${(j.error && j.error.description) || 'no details'}`);
   return j;
 }
 

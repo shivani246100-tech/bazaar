@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AddProductUpload } from '@/pages/AddProductPage';
-import { SellerOrdersSecure } from '@/pages/SellerOrdersPage';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { useRouter, Link, pathname } from '@/lib/router';
@@ -10,6 +8,9 @@ import { Card, Badge, EmptyState, Spinner } from '@/components/ui/Common';
 import { Select, Input, Textarea, Field } from '@/components/ui/Input';
 import type { Product, Order, Wallet, WalletTransaction, Withdrawal, SubscriptionPlan, Subscription, SellerProfile, Category, Review } from '@/lib/types';
 import { formatINR, formatDate, formatDateTime, ORDER_STATUS_LABELS, slugify } from '@/lib/utils';
+import { AddProductUpload } from '@/pages/AddProductPage';
+import { SellerOrdersSecure } from '@/pages/SellerOrdersPage';
+import { SellerReturns } from '@/pages/SellerReturnsPage';
 import { LayoutDashboard, Package, ShoppingBag, DollarSign, Wallet as WalletIcon, Store, Ticket, Bell, HelpCircle, Plus, TrendingUp, ArrowUpRight, ArrowDownRight, Trash2, Edit, Check, X, Star, ChevronRight, Download, Upload, Clock } from 'lucide-react';
 
 const NAV = [
@@ -17,6 +18,7 @@ const NAV = [
   { label: 'Add Product', icon: Plus, path: '/seller/add-product' },
   { label: 'My Products', icon: Package, path: '/seller/products' },
   { label: 'Orders', icon: ShoppingBag, path: '/seller/orders' },
+  { label: 'Returns', icon: ArrowDownRight, path: '/seller/returns' },
   { label: 'Earnings', icon: DollarSign, path: '/seller/earnings' },
   { label: 'Wallet', icon: WalletIcon, path: '/seller/wallet' },
   { label: 'Withdrawals', icon: ArrowUpRight, path: '/seller/withdrawals' },
@@ -110,7 +112,8 @@ export function SellerDashboard({ subpath }: { subpath: string }) {
             {subpath === '/seller' && <SellerOverview seller={seller} />}
             {subpath === '/seller/add-product' && <AddProductUpload seller={seller} />}
             {subpath === '/seller/products' && <SellerProducts seller={seller} />}
-            {subpath === '/seller/orders' && <SellerOrdersSecure seller={seller} 
+            {subpath === '/seller/orders' && <SellerOrdersSecure seller={seller} />}
+            {subpath === '/seller/returns' && <SellerReturns seller={seller} />}
             {subpath === '/seller/earnings' && <SellerEarnings seller={seller} />}
             {subpath === '/seller/wallet' && <SellerWallet seller={seller} />}
             {subpath === '/seller/withdrawals' && <SellerWithdrawals seller={seller} />}
@@ -208,110 +211,6 @@ function SellerOverview({ seller }: { seller: SellerProfile }) {
   );
 }
 
-// ============ ADD PRODUCT ============
-function AddProduct({ seller }: { seller: SellerProfile }) {
-  const { push } = useToast();
-  const { navigate } = useRouter();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    name: '', category_id: '', brand: '', description: '', mrp: '', selling_price: '', stock: '', sku: '', weight: '', shipping_info: '', return_policy: '7 Days Easy Returns',
-  });
-  const [images, setImages] = useState<string[]>(['']);
-
-  useEffect(() => {
-    supabase.from('categories').select('*').eq('is_active', true).order('name').then(({ data }) => setCategories(data || []));
-  }, []);
-
-  const submit = async () => {
-    if (!form.name || !form.selling_price || !form.category_id) { push('error', 'Please fill required fields'); return; }
-    setLoading(true);
-    try {
-      const slug = `${slugify(form.name)}-${Date.now().toString(36)}`;
-      const { data: product, error } = await supabase.from('products').insert({
-        seller_id: seller.id,
-        category_id: form.category_id,
-        name: form.name,
-        slug,
-        brand: form.brand || null,
-        description: form.description,
-        mrp: parseFloat(form.mrp) || parseFloat(form.selling_price),
-        selling_price: parseFloat(form.selling_price),
-        stock: parseInt(form.stock) || 0,
-        sku: form.sku || null,
-        weight: form.weight ? parseFloat(form.weight) : null,
-        shipping_info: form.shipping_info || null,
-        return_policy: form.return_policy,
-        status: 'pending',
-      }).select().single();
-
-      if (error) throw error;
-
-      // Insert images
-      const validImages = images.filter(i => i.trim());
-      if (validImages.length > 0 && product) {
-        await supabase.from('product_images').insert(validImages.map((url, i) => ({ product_id: product.id, image_url: url, sort_order: i })));
-      }
-
-      push('success', 'Product submitted for approval!');
-      navigate('/seller/products');
-    } catch (err: any) {
-      push('error', err.message || 'Failed to add product');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div>
-      <h1 className="text-xl font-bold text-slate-900 mb-4">Add New Product</h1>
-      <Card className="p-5 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Product Name *"><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Cotton T-Shirt" /></Field>
-          <Field label="Brand"><Input value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} placeholder="e.g. Trendz" /></Field>
-        </div>
-        <Field label="Category *">
-          <Select value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })}>
-            <option value="">Select category</option>
-            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
-        </Field>
-        <Field label="Description"><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Describe your product..." /></Field>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          <Field label="MRP (₹)"><Input type="number" value={form.mrp} onChange={e => setForm({ ...form, mrp: e.target.value })} placeholder="999" /></Field>
-          <Field label="Selling Price (₹) *"><Input type="number" value={form.selling_price} onChange={e => setForm({ ...form, selling_price: e.target.value })} placeholder="499" /></Field>
-          <Field label="Stock Quantity"><Input type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} placeholder="100" /></Field>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          <Field label="SKU"><Input value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} placeholder="TRZ-001" /></Field>
-          <Field label="Weight (kg)"><Input type="number" step="0.01" value={form.weight} onChange={e => setForm({ ...form, weight: e.target.value })} placeholder="0.2" /></Field>
-          <Field label="Return Policy"><Input value={form.return_policy} onChange={e => setForm({ ...form, return_policy: e.target.value })} /></Field>
-        </div>
-        <Field label="Shipping Information"><Input value={form.shipping_info} onChange={e => setForm({ ...form, shipping_info: e.target.value })} placeholder="Ships in 2-3 days" /></Field>
-
-        {/* Images */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Product Images (URLs)</label>
-          <div className="space-y-2">
-            {images.map((img, i) => (
-              <div key={i} className="flex gap-2">
-                <Input value={img} onChange={e => setImages(prev => prev.map((x, j) => j === i ? e.target.value : x))} placeholder="https://example.com/image.jpg" />
-                {images.length > 1 && <Button variant="ghost" size="sm" onClick={() => setImages(prev => prev.filter((_, j) => j !== i))}><X className="h-4 w-4" /></Button>}
-              </div>
-            ))}
-          </div>
-          <button onClick={() => setImages(prev => [...prev, ''])} className="mt-2 text-sm text-rose-600 font-medium hover:underline">+ Add another image</button>
-        </div>
-
-        <div className="flex gap-2 pt-2">
-          <Button onClick={submit} loading={loading}>Submit for Approval</Button>
-          <Button variant="ghost" onClick={() => navigate('/seller/products')}>Cancel</Button>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
 // ============ MY PRODUCTS ============
 function SellerProducts({ seller }: { seller: SellerProfile }) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -364,78 +263,6 @@ function SellerProducts({ seller }: { seller: SellerProfile }) {
               </div>
               <Badge variant={p.status === 'approved' ? 'success' : p.status === 'pending' ? 'warning' : p.status === 'rejected' ? 'error' : 'default'}>{p.status}</Badge>
               <button onClick={() => deleteProduct(p.id)} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 className="h-4 w-4" /></button>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============ SELLER ORDERS ============
-function SellerOrders({ seller }: { seller: SellerProfile }) {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { push } = useToast();
-
-  const fetch = async () => {
-    const { data } = await supabase.from('orders').select('*, order_items(*), customer:profiles(id, full_name, phone)').eq('seller_id', seller.id).order('created_at', { ascending: false });
-    setOrders((data as any) || []);
-    setLoading(false);
-  };
-  useEffect(() => { fetch(); }, [seller.id]);
-
-  const updateStatus = async (orderId: string, status: string) => {
-    await supabase.from('orders').update({ status, updated_at: new Date().toISOString() }).eq('id', orderId);
-    push('success', 'Order status updated');
-    fetch();
-  };
-
-  if (loading) return <div className="flex justify-center py-8"><Spinner className="h-8 w-8" /></div>;
-
-  return (
-    <div>
-      <h1 className="text-xl font-bold text-slate-900 mb-4">Orders ({orders.length})</h1>
-      {orders.length === 0 ? (
-        <EmptyState icon={<ShoppingBag className="h-16 w-16" />} title="No orders yet" message="When customers buy your products, orders will appear here." />
-      ) : (
-        <div className="space-y-3">
-          {orders.map(o => (
-            <Card key={o.id} className="p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">{o.order_number}</p>
-                  <p className="text-xs text-slate-400">{formatDate(o.created_at)} · {(o as any).customer?.full_name || 'Customer'}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-slate-900">{formatINR(o.total)}</span>
-                  <Badge variant={o.payment_status === 'paid' ? 'success' : 'warning'}>{o.payment_status}</Badge>
-                </div>
-              </div>
-              <div className="space-y-1.5 mb-3">
-                {o.order_items?.map(item => (
-                  <div key={item.id} className="flex items-center gap-2 text-sm text-slate-600">
-                    <div className="w-8 h-8 rounded bg-slate-100 overflow-hidden shrink-0">
-                      {item.product_image && <img src={item.product_image} alt="" className="w-full h-full object-cover" />}
-                    </div>
-                    <span className="flex-1 truncate">{item.product_name} × {item.quantity}</span>
-                    <span>{formatINR(item.total_price)}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-                <Select value={o.status} onChange={e => updateStatus(o.id, e.target.value)} className="w-auto text-xs py-1.5">
-                  <option value="pending">Payment Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="processing">Processing</option>
-                  <option value="packed">Packed</option>
-                  <option value="shipped">Shipped</option>
-                  <option value="out_for_delivery">Out for Delivery</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </Select>
-              </div>
             </Card>
           ))}
         </div>

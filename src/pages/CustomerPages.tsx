@@ -240,6 +240,7 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
           </Card>
         )}
         
+                <CancelOrderCard order={order} onDone={(patch) => setOrder({ ...order, ...patch } as any)} />
        <ReturnExchangeCard order={order} />
         {/* Items */}
         <Card className="p-5 mb-4">

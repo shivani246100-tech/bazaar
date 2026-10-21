@@ -62,7 +62,7 @@ function OrderCard({ order }: { order: Order }) {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={statusColor as any}>{ORDER_STATUS_LABELS[status] || status}</Badge>
-          <Badge variant={order.payment_status === 'paid' ? 'success' : 'warning'}>{order.payment_status}</Badge>
+          {!(status === 'cancelled' && order.payment_status === 'pending') && <Badge variant={order.payment_status === 'paid' ? 'success' : 'warning'}>{order.payment_status}</Badge>}
         </div>
       </div>
       <div className="p-4">
@@ -100,7 +100,7 @@ function OrderCard({ order }: { order: Order }) {
 
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => navigate(`/orders/${order.id}`)}>Track Order</Button>
-          {order.payment_status === 'pending' && <Button size="sm">Pay Now</Button>}
+        
         </div>
       </div>
     </Card>
